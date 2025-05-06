@@ -26,6 +26,6 @@ func NewRouterHttp(router *gin.RouterGroup, db *gorm.DB, middle domain.Middlewar
 }
 
 func (r RouterHttp) RegisterRoute() {
-	r.router.POST("/checkout", r.middleware.GetSessionCustomer(), r.handler.CheckoutTransaction)
+	r.router.GET("/fraud-detection", r.handler.GetFraudDetection)
 
 }

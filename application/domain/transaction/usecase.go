@@ -2,74 +2,67 @@ package transaction
 
 import (
 	"context"
-	"math"
-	"net/http"
-	"simple-go/application/entity"
+	"log"
 	"simple-go/pkg/response"
-	"strconv"
-	"time"
 )
 
 type Repository interface {
-	GetCustomerTenor(ctx context.Context, customerId, tenor int) (entity.CustomerLimit, error)
-	UpdateCustomerTenor(ctx context.Context, req entity.CustomerLimit, id int) (entity.CustomerLimit, error)
-
-	CreateCustomerTransaction(ctx context.Context, req entity.Transaction) (entity.Transaction, error)
+	TransactionFreqCheck(ctx context.Context) ([]FreqCheckResponse, error)
 }
 
 type service struct {
 	repository Repository
 }
 
+func (s service) getDataTransactionFreq(ctx context.Context, resp chan<- []FreqCheckResponse) {
+	var data []FreqCheckResponse
+	data, _ = s.repository.TransactionFreqCheck(ctx)
+
+	for _, val := range data {
+		if val.Total > 8 {
+			val.Score = 90
+		} else if val.Total >= 7 || val.Total <= 8 {
+			val.Score = 80
+		} else if val.Total == 6 {
+			val.Score = 70
+		} else if val.Total == 5 {
+			val.Score = 50
+		} else if val.Total < 5 {
+			val.Score = 40
+		}
+	}
+
+	resp <- data
+}
+func (s service) getDataAmountCheck(ctx context.Context, resp chan<- []FreqCheckResponse) {
+	var data []FreqCheckResponse
+	resp <- data
+}
+func (s service) getDataPatterCheck(ctx context.Context, resp chan<- []FreqCheckResponse) {
+	var data []FreqCheckResponse
+	resp <- data
+}
+
+func (s service) GetFraudDetection(ctx context.Context) ([]ResultDetectionData, response.ErrorResponse) {
+	//get transaction freq
+	transactionFreqCh := make(chan []FreqCheckResponse)
+	go s.getDataTransactionFreq(ctx, transactionFreqCh)
+	//get amount check
+	amountCheckCh := make(chan []FreqCheckResponse)
+	go s.getDataAmountCheck(ctx, amountCheckCh)
+	//get pattern check
+	patternCheckCh := make(chan []FreqCheckResponse)
+	go s.getDataPatterCheck(ctx, patternCheckCh)
+
+	//map to array with user id
+	transactionFreq := <-transactionFreqCh
+	log.Println(transactionFreq)
+
+	return []ResultDetectionData{}, *response.NotError()
+}
+
 func NewService(repo Repository) service {
 	return service{
 		repository: repo,
 	}
-}
-
-func (s service) CheckoutTransaction(ctx context.Context, customerId int, req CheckoutLoanReq) response.ErrorResponse {
-	//check tenor customer, validate with otr_price
-	limitTenor, err := s.repository.GetCustomerTenor(ctx, customerId, req.Tenor)
-	if err != nil {
-		return *response.Error("22101").WithError(err.Error()).WithStatusCode(http.StatusInternalServerError)
-	}
-	if limitTenor.IsEmpty {
-		return *response.Error("22101").WithError("not found").WithStatusCode(http.StatusBadRequest)
-	}
-	if *limitTenor.RemainingLimit < req.OTRPrice {
-		return *response.Error("22104").WithStatusCode(http.StatusBadRequest)
-	}
-
-	//create transaction
-	unixNumber := int(math.Floor(float64(time.Now().UnixMicro() / 1000)))
-	contractNumber := `INV/XYZ/` + strconv.Itoa(unixNumber)
-
-	newTransaction := entity.Transaction{
-		ContractNumber:  contractNumber,
-		CustomerId:      customerId,
-		CustomerLimitId: limitTenor.ID,
-		OTRPrice:        req.OTRPrice,
-		AdminFee:        req.AdminFee,
-		InterestPrice:   req.InterestPrice,
-		Status:          1,
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
-	}
-	_, err = s.repository.CreateCustomerTransaction(ctx, newTransaction)
-	if err != nil {
-		return *response.Error("22101").WithError(err.Error()).WithStatusCode(http.StatusInternalServerError)
-	}
-
-	//update tenor
-	remaining := *limitTenor.RemainingLimit - req.OTRPrice
-	updTenor := entity.CustomerLimit{
-		RemainingLimit: &remaining,
-		UpdatedAt:      time.Now(),
-	}
-	_, err = s.repository.UpdateCustomerTenor(ctx, updTenor, limitTenor.ID)
-	if err != nil {
-		return *response.Error("22101").WithError(err.Error()).WithStatusCode(http.StatusInternalServerError)
-	}
-
-	return *response.NotError()
 }

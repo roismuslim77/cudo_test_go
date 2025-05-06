@@ -3,7 +3,6 @@ package database
 import (
 	"gorm.io/gorm"
 	"simple-go/application/config"
-	"simple-go/application/entity"
 	"simple-go/pkg/db"
 	"time"
 )
@@ -37,10 +36,10 @@ func ConnectPostgres() (*gorm.DB, error) {
 	db := postgres.(*db.GormPostgresDB).DB
 	if stageApp == "dev" {
 		db.AutoMigrate(
-			&entity.Customer{},
-			&entity.CustomerLimit{},
-			&entity.Transaction{},
-			&entity.CustomerAuth{},
+			//&entity.Customer{},
+			//&entity.CustomerLimit{},
+			//&entity.Transaction{},
+			//&entity.CustomerAuth{},
 		)
 	}
 

@@ -17,13 +17,13 @@ services:
     volumes:
       - ./:/app
     networks:
-      - network-inventory-simple
+      - network-simple-go
 
   postgres:
     container_name: postgres
     image: postgres:latest
     networks:
-      - network-inventory-simple
+      - network-simple-go
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASS}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -39,4 +39,4 @@ volumes:
     driver: local
 
 networks:
-  network-inventory-simple:
+  network-simple-go:

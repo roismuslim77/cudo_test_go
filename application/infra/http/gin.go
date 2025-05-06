@@ -6,7 +6,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"net/http"
-	"simple-go/application/domain/auth"
 	"simple-go/application/domain/healthcheck"
 	"simple-go/application/domain/transaction"
 )
@@ -57,11 +56,9 @@ func (r *Router) Run() {
 	fmt.Println("server running at port", r.port)
 
 	baseHealthCheck := r.router.Group("/health-check")
-	baseAuth := r.router.Group("/auth")
-	baseTransaction := r.router.Group("/transaction")
+	baseTransaction := r.router.Group("/")
 
 	r.BuildHealthCheck(baseHealthCheck)
-	r.BuildAuth(baseAuth)
 	r.BuildTransaction(baseTransaction)
 
 	r.router.Run(fmt.Sprintf(":%s", r.port))
@@ -70,10 +67,6 @@ func (r *Router) Run() {
 func (r *Router) BuildHealthCheck(router *gin.RouterGroup) {
 	hc := healthcheck.NewRouterHttp(router, r.db)
 	hc.RegisterRoute()
-}
-func (r *Router) BuildAuth(router *gin.RouterGroup) {
-	auth := auth.NewRouterHttp(router, r.db, r.middleware)
-	auth.RegisterRoute()
 }
 func (r *Router) BuildTransaction(router *gin.RouterGroup) {
 	trx := transaction.NewRouterHttp(router, r.db, r.middleware)
